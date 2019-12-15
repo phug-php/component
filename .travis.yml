@@ -1,0 +1,28 @@
+language: php
+
+php:
+  - 7.2
+  - 7.3
+  - 7.4
+  - nightly
+
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+  - travis_retry composer self-update
+  - travis_retry composer install --no-interaction --prefer-source --dev
+
+script:
+  - vendor/bin/phpunit --verbose --coverage-text --coverage-clover=coverage.xml
+
+after_script:
+  - vendor/bin/test-reporter --coverage-report coverage.xml
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+env:
+  global:
+    - CC_TEST_REPORTER_ID=985c432a65a5dabaacffbd031324ecd0390128f73c99b7e3fe04dcec307262c2
