@@ -13,6 +13,17 @@ Enable it globally:
 \Phug\Component\ComponentExtension::enable();
 ```
 
+To enable it automatically when calling static methods `render`, `renderFile`,
+`display`, `displayFile` etc. on either `\Pug\Facade` or `\Phug\Phug` class.
+
+If using in a `\Pug\Pug` or `\Phug\Renderer` instance, add the `ComponentExtension`
+class to modules:
+```php
+$pug = new \Pug\Pug([
+  'modules' => [\Phug\Component\ComponentExtension::class],
+]);
+```
+
 ## Usage
 
 ```pug
