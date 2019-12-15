@@ -1,8 +1,8 @@
 # Phug Component
 
-Extension for pug-php and phug to use components in templates
+Extension for Pug-php and Phug to use components in templates
 
-## Install
+## Installation
 
 ```
 composer require phug/component
