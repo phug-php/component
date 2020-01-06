@@ -3,12 +3,18 @@
 namespace Phug\Test\Component;
 
 use PHPUnit\Framework\TestCase;
+use Phug\Compiler\Event\NodeEvent;
 use Phug\CompilerEvent;
 use Phug\Component\ComponentExtension;
 use Phug\Formatter\Element\KeywordElement;
 use Phug\Formatter\Element\TextElement;
+use Phug\Parser\Node\ElementNode;
+use Phug\Parser\Node\KeywordNode;
+use Phug\Parser\Node\MixinCallNode;
+use Phug\Parser\Node\TextNode;
 use Phug\Phug;
 use Phug\Renderer;
+use Phug\Util\Partial\ValueTrait;
 use XhtmlFormatter\Formatter;
 
 /**
@@ -213,5 +219,43 @@ class ComponentExtensionTest extends TestCase
             'begin' => '<?php if (Phug\Component\ComponentExtension::slot(\'foobar\', get_defined_vars())) { ?>',
             'end' => '<?php } ?>',
         ], $slot('foobar', $keyword));
+    }
+
+    protected function getValue($object)
+    {
+        $this->assertTrue(method_exists($object, 'getValue'), (is_object($object) ? get_class($object) : gettype($object)).' unexpected.');
+
+        /** @var ValueTrait $node */
+        $node = $object;
+
+        return $node->getValue();
+    }
+
+    /**
+     * @covers ::handleNodeEvent
+     */
+    public function testHandleNodeEvent()
+    {
+        $extension = new ComponentExtension(new Renderer());
+        $children = [
+            (new KeywordNode)->setName('foo')->setValue('bar'),
+            (new KeywordNode)->setName('slot')->setValue('header'),
+            new TextNode(),
+        ];
+        $tag = new ElementNode(null, null, null, null, $children);
+        $extension->handleNodeEvent(new NodeEvent($tag));
+
+        $this->assertSame($children, $tag->getChildren());
+
+        $call = new MixinCallNode(null, null, null, null, $children);
+        $extension->handleNodeEvent(new NodeEvent($call));
+
+        $this->assertCount(5, $call->getChildren());
+        $this->assertSame('$pug_component_slot = null', $this->getValue($call->getChildAt(0)));
+        $this->assertSame('if ($pug_component_slot === "__main__")', $this->getValue($call->getChildAt(1)->getChildAt(0)));
+        $this->assertSame($children[0], $call->getChildAt(1)->getChildAt(1));
+        $this->assertSame($children[1], $call->getChildAt(2));
+        $this->assertSame('if ($pug_component_slot === "__main__")', $this->getValue($call->getChildAt(3)->getChildAt(0)));
+        $this->assertSame($children[2], $call->getChildAt(3)->getChildAt(1));
     }
 }
