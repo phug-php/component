@@ -25,7 +25,8 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^8",
-        "pug-php/pug": "^3"
+        "pug-php/pug": "^3",
+        "machy8/xhtml-formatter": "^1.0"
     },
     "autoload": {
         "psr-4": {

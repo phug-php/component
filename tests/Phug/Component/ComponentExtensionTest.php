@@ -4,6 +4,7 @@ namespace Phug\Test\Component;
 
 use PHPUnit\Framework\TestCase;
 use Phug\Phug;
+use XhtmlFormatter\Formatter;
 
 class ComponentExtensionTest extends TestCase
 {
@@ -11,6 +12,16 @@ class ComponentExtensionTest extends TestCase
      * @var string
      */
     protected $readme = null;
+
+    /**
+     * @var Formatter
+     */
+    protected $htmlFormatter;
+
+    protected function renderAndFormat(string $code): string
+    {
+        return trim($this->htmlFormatter->format(Phug::render($code)));
+    }
 
     protected function getReadmeContents(): string
     {
@@ -23,6 +34,9 @@ class ComponentExtensionTest extends TestCase
 
     protected function setUp(): void
     {
+        $this->htmlFormatter = new Formatter;
+        $this->htmlFormatter->setSpacesIndentationMethod(2);
+
         preg_match(
             '/```php\n(?<php>[\s\S]+)\n```/U',
             $this->getReadmeContents(),
@@ -51,6 +65,9 @@ class ComponentExtensionTest extends TestCase
      */
     public function testReadme($htmlCode, $pugCode)
     {
-        $this->assertSame($htmlCode, Phug::render($pugCode));
+        $this->assertSame(
+            preg_replace('/\n{2,}/', "\n", $htmlCode),
+            $this->renderAndFormat($pugCode)
+        );
     }
 }
