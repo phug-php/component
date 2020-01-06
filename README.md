@@ -37,7 +37,7 @@ component alert
 
 section
   //- Somewhere later in your template
-  @alert
+  +alert
     slot title
       | Hello #[em world]!
 
