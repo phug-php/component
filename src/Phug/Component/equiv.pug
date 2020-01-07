@@ -1,0 +1,21 @@
+mixin a(b)
+    - ob_start()
+    p=b
+    __pug_slot_1
+        span Slot
+    foo
+        block
+    - contents = ob_get_contents()
+    - ob_end_clean()
+    - preg_match_all('/<__pug_slot_1>([\s\S]*)<\/__pug_slot_1>/U', contents, pug_slot_1, PREG_SET_ORDER)
+    - pug_slot_1 = end(pug_slot_1)
+    !=preg_replace_callback('/<__pug_slot_1>([\s\S]*)<\/__pug_slot_1>/U', function () {
+        code = pug_slot_1[1];
+        pug_slot_1[1] = '';
+            return code;
+        }, contents)
+
++a(4)
+    __pug_slot_1
+        b OverSlot
+    div

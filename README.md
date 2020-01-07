@@ -1,8 +1,8 @@
 # Phug Component
 
-Extension for pug-php and phug to use components in templates
+Extension for Pug-php and Phug to use components in templates
 
-## Install
+## Installation
 
 ```
 composer require phug/component
@@ -37,7 +37,7 @@ component alert
 
 section
   //- Somewhere later in your template
-  @alert
+  +alert
     slot title
       | Hello #[em world]!
 
@@ -56,4 +56,39 @@ Output:
     <p>This is an alert!</p>
   </div>
 </section>
+```
+
+### Default slots
+
+```pug
+component page
+  header
+    slot header
+      | Default header
+
+  slot
+
+  footer
+    slot footer
+      | Default footer
+
++page
+  | My page content
+
+  slot footer
+    | Custom footer
+```
+
+Output:
+
+```html
+<header>
+  Default header
+</header>
+
+My page content
+
+<footer>
+  Custom footer
+</footer>
 ```
