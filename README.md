@@ -1,6 +1,3 @@
-⚠️ Warning: this project is in development stage, you should not
-use it in production.
-
 # Phug Component
 
 Extension for Pug-php and Phug to use components in templates
