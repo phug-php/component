@@ -233,6 +233,7 @@ class ComponentExtensionTest extends TestCase
 
     /**
      * @covers ::handleNodeEvent
+     * @covers ::getCodeNode
      */
     public function testHandleNodeEvent()
     {
@@ -252,10 +253,20 @@ class ComponentExtensionTest extends TestCase
 
         $this->assertCount(5, $call->getChildren());
         $this->assertSame('$pug_component_slot = null', $this->getValue($call->getChildAt(0)));
-        $this->assertSame('if ($pug_component_slot === "__main__")', $this->getValue($call->getChildAt(1)->getChildAt(0)));
-        $this->assertSame($children[0], $call->getChildAt(1)->getChildAt(1));
+        $this->assertSame('if (!isset($pug_component_slot) || $pug_component_slot === "__main__")', $this->getValue($call->getChildAt(1)->getChildAt(0)));
+        $this->assertSame($children[0], $call->getChildAt(1)->getChildAt(2));
         $this->assertSame($children[1], $call->getChildAt(2));
-        $this->assertSame('if ($pug_component_slot === "__main__")', $this->getValue($call->getChildAt(3)->getChildAt(0)));
-        $this->assertSame($children[2], $call->getChildAt(3)->getChildAt(1));
+        $this->assertSame('if (!isset($pug_component_slot) || $pug_component_slot === "__main__")', $this->getValue($call->getChildAt(3)->getChildAt(0)));
+        $this->assertSame($children[2], $call->getChildAt(3)->getChildAt(2));
+    }
+
+    public function testBasicMixinAreStillFine()
+    {
+        $this->assertSame('Hello', $this->renderAndFormat(implode("\n", [
+            'mixin foo',
+            '  block',
+            '+foo',
+            '  | Hello',
+        ])));
     }
 }

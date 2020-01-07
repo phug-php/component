@@ -9,6 +9,7 @@ use Phug\Compiler\Event\NodeEvent;
 use Phug\CompilerEvent;
 use Phug\Formatter\Element\KeywordElement;
 use Phug\Formatter\Element\MixinElement;
+use Phug\Parser\NodeInterface as ParserNodeInterface;
 use Phug\Parser\Node\CodeNode;
 use Phug\Parser\Node\KeywordNode;
 use Phug\Parser\Node\MixinCallNode;
@@ -84,20 +85,32 @@ class ComponentExtension extends AbstractExtension implements RendererModuleInte
         ];
     }
 
+    protected function getCodeNode(NodeInterface $linkedNode, ParserNodeInterface $parentNode = null, $value = null, array $children = null)
+    {
+        $code = new CodeNode($linkedNode->getToken(), null, $linkedNode->getLevel(), $parentNode, $children);
+
+        if ($value !== null) {
+            $code->setValue($value);
+        }
+
+        return $code;
+    }
+
     public function handleNodeEvent(NodeEvent $event): void
     {
         $call = $event->getNode();
 
         if ($call instanceof MixinCallNode) {
             $call->setChildren(array_merge(
-                [(new CodeNode($call->getToken(), null, $call->getLevel(), $call))->setValue('$'.static::PUG_SLOT_NAME_VARIABLE.' = null')],
-                array_map(static function (NodeInterface $node) use ($call) {
+                [$this->getCodeNode($call, $call, '$'.static::PUG_SLOT_NAME_VARIABLE.' = null')],
+                array_map(function (NodeInterface $node) use ($call) {
                     if ($node instanceof KeywordNode && $node->getName() === 'slot') {
                         return $node;
                     }
 
-                    return new CodeNode($node->getToken(), null, $node->getLevel(), $call, [
-                        (new TextNode($node->getToken(), null, $node->getLevel()))->setValue('if ($'.static::PUG_SLOT_NAME_VARIABLE.' === "__main__")'),
+                    return $this->getCodeNode($node, $call, null, [
+                        (new TextNode($node->getToken(), null, $node->getLevel()))->setValue('if (!isset($'.static::PUG_SLOT_NAME_VARIABLE.') || $'.static::PUG_SLOT_NAME_VARIABLE.' === "__main__")'),
+                        $this->getCodeNode($node, null, '// main slot'),
                         $node,
                     ]);
                 }, $call->getChildren())
