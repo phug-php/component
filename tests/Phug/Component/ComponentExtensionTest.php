@@ -176,8 +176,60 @@ class ComponentExtensionTest extends TestCase
         $this->assertTrue(ComponentExtension::slot('foo', ['pug_component_slot' => 'foo']));
         $this->assertTrue(ComponentExtension::slot('__main__', ['pug_component_slot' => '__main__']));
 
+        $called = false;
+        $callback = function () use (&$called) {
+            $called = true;
+        };
+
+        $this->assertTrue(ComponentExtension::slot('foo', ['pug_component_slot' => 'foo', 'pug_component_slot_foo' => $callback]));
+        $this->assertTrue($called);
+
+        $called = false;
+        $this->assertTrue(ComponentExtension::slot('__main__', ['pug_component_slot' => '__main__', 'pug_component_slot_foo' => $callback]));
+        $this->assertFalse($called);
+
+        $called = false;
+        $this->assertTrue(ComponentExtension::slot('foo', ['pug_component_slot' => 'foo', 'pug_component_slot___main__' => $callback]));
+        $this->assertFalse($called);
+
+        $called = false;
+        $this->assertTrue(ComponentExtension::slot('__main__', ['pug_component_slot' => '__main__', 'pug_component_slot___main__' => $callback]));
+        $this->assertTrue($called);
+
         $arguments = [];
         $children = static function (...$args) use (&$arguments) {
+            if (isset($args[0]['pug_component_slot_foo'])) {
+                unset($args[0]['pug_component_slot_foo']);
+            }
+
+            if (isset($args[0]['pug_component_slot___main__'])) {
+                unset($args[0]['pug_component_slot___main__']);
+            }
+
+            $arguments = $args;
+        };
+
+        $this->assertTrue(ComponentExtension::slot('foo', ['pug_component_slot' => 'foo', '__pug_children' => $children]));
+        $this->assertSame([['pug_component_slot' => 'foo', '__pug_children' => $children]], $arguments);
+        $this->assertTrue(ComponentExtension::slot('__main__', ['pug_component_slot' => '__main__', '__pug_children' => $children]));
+        $this->assertSame([['pug_component_slot' => '__main__', '__pug_children' => $children]], $arguments);
+        $this->assertTrue(ComponentExtension::slot('foo', ['__pug_children' => $children]));
+        $this->assertSame([['pug_component_slot' => 'foo', '__pug_children' => $children]], $arguments);
+        $this->assertTrue(ComponentExtension::slot('__main__', ['__pug_children' => $children]));
+        $this->assertSame([['pug_component_slot' => '__main__', '__pug_children' => $children]], $arguments);
+
+        $arguments = [];
+        $children = static function (...$args) use (&$arguments) {
+            if (isset($args[0]['pug_component_slot_foo'])) {
+                $args[0]['pug_component_slot_foo']();
+                unset($args[0]['pug_component_slot_foo']);
+            }
+
+            if (isset($args[0]['pug_component_slot___main__'])) {
+                $args[0]['pug_component_slot___main__']();
+                unset($args[0]['pug_component_slot___main__']);
+            }
+
             $arguments = $args;
         };
 

@@ -55,14 +55,31 @@ class ComponentExtension extends AbstractExtension implements RendererModuleInte
     public static function slot(string $name, array $definedVariables)
     {
         $children = $definedVariables['__pug_children'] ?? null;
+        $callbackName = static::PUG_SLOT_NAME_VARIABLE.'_'.$name;
 
         if (is_object($children) && $children instanceof Closure) {
-            $children(array_merge([static::PUG_SLOT_NAME_VARIABLE => $name ?: '__main__'], $definedVariables));
+            $called = false;
+            $children(array_merge([
+                static::PUG_SLOT_NAME_VARIABLE => $name ?: '__main__',
+                $callbackName => static function () use (&$called) {
+                    $called = true;
+                }
+            ], $definedVariables));
 
-            return false;
+            return !$called;
         }
 
-        return ($definedVariables[static::PUG_SLOT_NAME_VARIABLE] ?? null) === $name;
+        if (($definedVariables[static::PUG_SLOT_NAME_VARIABLE] ?? null) === $name) {
+            $callback = $definedVariables[$callbackName] ?? null;
+
+            if ($callback && $callback instanceof Closure) {
+                $callback();
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     public function getKeywords(): array
