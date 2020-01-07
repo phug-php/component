@@ -1,3 +1,6 @@
+⚠️ Warning: this project is in development stage, you should not
+use it in production.
+
 # Phug Component
 
 Extension for Pug-php and Phug to use components in templates
@@ -56,4 +59,39 @@ Output:
     <p>This is an alert!</p>
   </div>
 </section>
+```
+
+### Default slots
+
+```pug
+component page
+  header
+    slot header
+      | Default header
+
+  slot
+
+  footer
+    slot footer
+      | Default footer
+
++page
+  | My page content
+
+  slot footer
+    | Custom footer
+```
+
+Output:
+
+```html
+<header>
+  Default header
+</header>
+
+My page content
+
+<footer>
+  Custom footer
+</footer>
 ```
