@@ -13,6 +13,7 @@ use Phug\Parser\Node\KeywordNode;
 use Phug\Parser\Node\MixinCallNode;
 use Phug\Parser\Node\TextNode;
 use Phug\Phug;
+use Phug\PhugException;
 use Phug\Renderer;
 use Phug\Util\Partial\ValueTrait;
 use XhtmlFormatter\Formatter;
@@ -32,6 +33,23 @@ class ComponentExtensionTest extends TestCase
      */
     protected $htmlFormatter;
 
+    /**
+     * @throws PhugException
+     */
+    protected function setUp(): void
+    {
+        $this->htmlFormatter = new Formatter;
+        $this->htmlFormatter->setSpacesIndentationMethod(2);
+
+        preg_match(
+            '/```php\n(?<php>[\s\S]+)\n```/U',
+            $this->getReadmeContents(),
+            $install
+        );
+
+        eval($install['php']);
+    }
+
     protected function renderAndFormat(string $code): string
     {
         $html = trim($this->htmlFormatter->format(Phug::render($code)));
@@ -48,20 +66,6 @@ class ComponentExtensionTest extends TestCase
         }
 
         return $this->readme;
-    }
-
-    protected function setUp(): void
-    {
-        $this->htmlFormatter = new Formatter;
-        $this->htmlFormatter->setSpacesIndentationMethod(2);
-
-        preg_match(
-            '/```php\n(?<php>[\s\S]+)\n```/U',
-            $this->getReadmeContents(),
-            $install
-        );
-
-        eval($install['php']);
     }
 
     public function getReadmeExamples()
@@ -89,10 +93,6 @@ class ComponentExtensionTest extends TestCase
         );
     }
 
-    /**
-     * @covers ::__construct
-     * @covers ::getContainer
-     */
     public function testGetContainer()
     {
         $renderer = new Renderer();
@@ -100,9 +100,6 @@ class ComponentExtensionTest extends TestCase
         $this->assertSame($renderer, (new ComponentExtension($renderer))->getContainer());
     }
 
-    /**
-     * @covers ::enable
-     */
     public function testEnable()
     {
         ComponentExtension::enable();
@@ -110,9 +107,6 @@ class ComponentExtensionTest extends TestCase
         $this->assertTrue(Phug::hasExtension(ComponentExtension::class));
     }
 
-    /**
-     * @covers ::disable
-     */
     public function testDisable()
     {
         ComponentExtension::disable();
@@ -241,22 +235,6 @@ class ComponentExtensionTest extends TestCase
         $this->assertSame([['pug_component_slot' => 'foo', '__pug_children' => $children]], $arguments);
         $this->assertFalse(ComponentExtension::slot('__main__', ['__pug_children' => $children]));
         $this->assertSame([['pug_component_slot' => '__main__', '__pug_children' => $children]], $arguments);
-    }
-
-    /**
-     * @covers ::getKeywords
-     */
-    public function testComponentKeyword()
-    {
-        $renderer = new Renderer();
-        ['component' => $component] = (new ComponentExtension($renderer))->getKeywords();
-        $keyword = new KeywordElement('component', '', null, null, [(new TextElement)->setValue('Hello')]);
-
-        $this->assertFalse($renderer->getCompiler()->getFormatter()->getMixins()->has('foobar'));
-
-        $this->assertSame('', $component('foobar', $keyword));
-
-        $this->assertTrue($renderer->getCompiler()->getFormatter()->getMixins()->has('foobar'));
     }
 
     /**

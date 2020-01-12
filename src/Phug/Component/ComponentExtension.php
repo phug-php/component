@@ -3,53 +3,26 @@
 namespace Phug\Component;
 
 use Closure;
-use Phug\AbstractExtension;
+use Phug\AbstractPlugin;
 use Phug\Ast\NodeInterface;
 use Phug\Compiler\Event\NodeEvent;
 use Phug\CompilerEvent;
-use Phug\Formatter\Element\KeywordElement;
-use Phug\Formatter\Element\MixinElement;
 use Phug\Parser\NodeInterface as ParserNodeInterface;
 use Phug\Parser\Node\CodeNode;
 use Phug\Parser\Node\KeywordNode;
 use Phug\Parser\Node\MixinCallNode;
 use Phug\Parser\Node\TextNode;
-use Phug\Phug;
 use Phug\Renderer;
-use Phug\RendererModuleInterface;
-use Phug\Util\Partial\OptionTrait;
 
-class ComponentExtension extends AbstractExtension implements RendererModuleInterface
+class ComponentExtension extends AbstractPlugin
 {
-    use OptionTrait;
-
     const PUG_SLOT_NAME_VARIABLE = 'pug_component_slot';
-
-    /**
-     * @var Renderer
-     */
-    private $renderer;
 
     public function __construct(Renderer $renderer)
     {
-        $this->renderer = $renderer->setOptions([
-            'keywords' => $this->getKeywords(),
-        ]);
-    }
+        parent::__construct($renderer);
 
-    public function getContainer(): Renderer
-    {
-        return $this->renderer;
-    }
-
-    public static function enable(): void
-    {
-        Phug::addExtension(static::class);
-    }
-
-    public static function disable(): void
-    {
-        Phug::removeExtension(static::class);
+        $renderer->setOptions($this->getOptions());
     }
 
     public static function slot(string $name, array $definedVariables)
@@ -82,18 +55,23 @@ class ComponentExtension extends AbstractExtension implements RendererModuleInte
         return false;
     }
 
+    public function getOptions()
+    {
+        $name = 'mixin_keyword';
+        $renderer = $this->getRenderer();
+        $mixinKeywords = (array) ($renderer->hasOption($name) ? $renderer->getOption($name) : 'mixin');
+        $mixinKeywords[] = 'component';
+
+        return [
+            'mixin_keyword' => $mixinKeywords,
+            'keywords' => $this->getKeywords(),
+        ];
+    }
+
     public function getKeywords(): array
     {
         return [
-            'component' => function (string $name, KeywordElement $keyword): string {
-                $mixin = new MixinElement;
-                $mixin->setName($name);
-                $mixin->setChildren($keyword->getChildren());
-                $keyword->removeChildren();
-
-                return $this->renderer->getCompiler()->getFormatter()->format($mixin);
-            },
-            'slot' => static function (string $name, KeywordElement $keyword): array {
+            'slot' => static function (string $name): array {
                 return [
                     'begin' => '<?php if ('.static::class.'::slot('.var_export($name, true).', get_defined_vars())) { ?>',
                     'end' => '<?php } ?>',
@@ -137,11 +115,11 @@ class ComponentExtension extends AbstractExtension implements RendererModuleInte
 
     public function attachEvents(): void
     {
-        $this->renderer->getCompiler()->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $this->getContainer()->getCompiler()->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
     }
 
     public function detachEvents(): void
     {
-        $this->renderer->getCompiler()->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $this->getContainer()->getCompiler()->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
     }
 }
