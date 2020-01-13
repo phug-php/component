@@ -326,6 +326,8 @@ class ComponentExtensionTest extends TestCase
     }
 
     /**
+     * @covers ::__construct
+     * @covers ::getOptions
      * @covers ::enable
      *
      * @throws PhugException

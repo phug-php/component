@@ -91,3 +91,42 @@ My page content
   Custom footer
 </footer>
 ```
+
+### Parameters
+
+Component inherit mixin behavior.
+
+Parameters can be passed as in mixins:
+
+```pug
+component page($title)
+  header
+    h1=$title
+
+  slot
+
+  footer
+    slot footer
+      | Footer of #{$title} page
+
++page("Contact")
+  | Contact us
+```
+
+(`$title` becomes `title` if you use pug-php or js-phpize)
+
+Output:
+
+```html
+<header>
+  <h1>
+    Contact
+  </h1>
+</header>
+
+Contact us
+
+<footer>
+  Footer of Contact page
+</footer>
+```
