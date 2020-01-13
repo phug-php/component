@@ -19,9 +19,8 @@ To enable it automatically when calling static methods `render`, `renderFile`,
 If using in a `\Pug\Pug` or `\Phug\Renderer` instance, add the `ComponentExtension`
 class to modules:
 ```php
-$pug = new \Pug\Pug([
-  'modules' => [\Phug\Component\ComponentExtension::class],
-]);
+$pug = new \Pug\Pug([/*options*/]);
+\Phug\Component\ComponentExtension::enable($pug);
 ```
 
 ## Usage

@@ -2,6 +2,7 @@
 
 namespace Phug\Test\Component;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use Phug\Compiler\Event\NodeEvent;
 use Phug\CompilerEvent;
@@ -15,7 +16,10 @@ use Phug\Parser\Node\TextNode;
 use Phug\Phug;
 use Phug\PhugException;
 use Phug\Renderer;
+use Phug\RendererException;
 use Phug\Util\Partial\ValueTrait;
+use Pug\Pug;
+use ReflectionException;
 use XhtmlFormatter\Formatter;
 
 /**
@@ -33,9 +37,6 @@ class ComponentExtensionTest extends TestCase
      */
     protected $htmlFormatter;
 
-    /**
-     * @throws PhugException
-     */
     protected function setUp(): void
     {
         $this->htmlFormatter = new Formatter;
@@ -52,7 +53,12 @@ class ComponentExtensionTest extends TestCase
 
     protected function renderAndFormat(string $code): string
     {
-        $html = trim($this->htmlFormatter->format(Phug::render($code)));
+        return $this->format(Phug::render($code));
+    }
+
+    protected function format(string $html): string
+    {
+        $html = trim($this->htmlFormatter->format($html));
         $html = preg_replace('/\s+<em>\s*(.*\S)\s*<\/em>\s+/', ' <em>$1</em>', $html);
         $html = preg_replace('/<p>\s*(.*\S)\s*<\/p>/', '<p>$1</p>', $html);
 
@@ -84,8 +90,11 @@ class ComponentExtensionTest extends TestCase
 
     /**
      * @dataProvider getReadmeExamples
+     *
+     * @param string $htmlCode
+     * @param string $pugCode
      */
-    public function testReadme($htmlCode, $pugCode)
+    public function testReadme(string $htmlCode, string $pugCode)
     {
         $this->assertSame(
             preg_replace('/\n{2,}/', "\n", $htmlCode),
@@ -100,6 +109,9 @@ class ComponentExtensionTest extends TestCase
         $this->assertSame($renderer, (new ComponentExtension($renderer))->getContainer());
     }
 
+    /**
+     * @throws PhugException
+     */
     public function testEnable()
     {
         ComponentExtension::enable();
@@ -107,6 +119,9 @@ class ComponentExtensionTest extends TestCase
         $this->assertTrue(Phug::hasExtension(ComponentExtension::class));
     }
 
+    /**
+     * @throws PhugException
+     */
     public function testDisable()
     {
         ComponentExtension::disable();
@@ -116,6 +131,9 @@ class ComponentExtensionTest extends TestCase
 
     /**
      * @covers ::attachEvents
+     *
+     * @throws ReflectionException
+     * @throws RendererException
      */
     public function testAttachEvents()
     {
@@ -137,6 +155,9 @@ class ComponentExtensionTest extends TestCase
 
     /**
      * @covers ::detachEvents
+     *
+     * @throws ReflectionException
+     * @throws RendererException
      */
     public function testDetachEvents()
     {
@@ -264,6 +285,9 @@ class ComponentExtensionTest extends TestCase
     /**
      * @covers ::handleNodeEvent
      * @covers ::getCodeNode
+     *
+     * @throws ReflectionException
+     * @throws RendererException
      */
     public function testHandleNodeEvent()
     {
@@ -292,11 +316,40 @@ class ComponentExtensionTest extends TestCase
 
     public function testBasicMixinAreStillFine()
     {
-        $this->assertSame('Hello', $this->renderAndFormat(implode("\n", [
-            'mixin foo',
+        $this->assertSame("<p>5</p>\nHello", $this->renderAndFormat(implode("\n", [
+            'mixin foo($num)',
+            '  p=$num',
             '  block',
-            '+foo',
+            '+foo(5)',
             '  | Hello',
         ])));
+    }
+
+    /**
+     * @covers ::enable
+     *
+     * @throws PhugException
+     * @throws Exception
+     */
+    public function testWithPug()
+    {
+        $pug = new Pug();
+        ComponentExtension::enable($pug);
+
+        $this->assertSame(implode("\n", [
+            'Title',
+            '<article data-attr="5">',
+            '  Content',
+            '</article>',
+        ]), $this->format($pug->render(implode("\n", [
+            'mixin foobar(obj)',
+            '  slot title',
+            '  article(data-attr=obj.a): slot',
+            '+foobar({a: 5})',
+            '  slot title',
+            '    | Title',
+            '  slot __main__',
+            '    | Content',
+        ]))));
     }
 }
