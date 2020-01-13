@@ -22,7 +22,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=7.2",
-        "phug/phug": "dev-feature/configurable-scanners"
+        "phug/phug": "dev-feature/configurable-scanners as 1.5.0"
     },
     "require-dev": {
         "phpunit/phpunit": "^8.5",
