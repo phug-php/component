@@ -130,3 +130,41 @@ Contact us
   Footer of Contact page
 </footer>
 ```
+
+### Fallback component
+
+This package also include a function to get the first defined mixin/component
+among given names:
+
+```pug
+component page
+  | Page component
+
++#{$firstComponent('customPage', 'page')}
+```
+
+Output:
+
+```html
+Page component
+```
+
+And if `customPage` component is defined, it will be used instead:
+```pug
+component page
+  | Page component
+
+component customPage
+  | CustomPage component
+
++#{$firstComponent('customPage', 'page')}
+```
+
+Output:
+
+```html
+CustomPage component
+```
+
+(`$firstComponent` becomes `firstComponent` if you use pug-php or js-phpize)
+`$firstMixin` is also available as an alias.

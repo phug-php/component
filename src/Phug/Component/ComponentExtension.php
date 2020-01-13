@@ -6,6 +6,7 @@ use Closure;
 use Phug\AbstractPlugin;
 use Phug\Ast\NodeInterface;
 use Phug\Compiler\Event\NodeEvent;
+use Phug\Compiler\Event\OutputEvent;
 use Phug\CompilerEvent;
 use Phug\Parser\NodeInterface as ParserNodeInterface;
 use Phug\Parser\Node\CodeNode;
@@ -113,13 +114,37 @@ class ComponentExtension extends AbstractPlugin
         }
     }
 
+    public function handleOutputEvent(OutputEvent $event): void
+    {
+        $event->setOutput(
+            implode("\n", [
+                '<?php',
+                '$firstMixin = function (string ...$names) use (&$__pug_mixins) {',
+                '  foreach ($names as $name) {',
+                '    if (isset($__pug_mixins[$name])) {',
+                '      return $name;',
+                '    }',
+                '  }',
+                '  throw new \\InvalidArgumentException("No defined mixin/component in [".implode(", ", $names)."]");',
+                '};',
+                '$firstComponent = $firstMixin;',
+                '?>',
+            ]).
+            $event->getOutput()
+        );
+    }
+
     public function attachEvents(): void
     {
-        $this->getContainer()->getCompiler()->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $compiler = $this->getCompiler();
+        $compiler->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $compiler->attach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
     }
 
     public function detachEvents(): void
     {
-        $this->getContainer()->getCompiler()->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $compiler = $this->getCompiler();
+        $compiler->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
+        $compiler->detach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
     }
 }

@@ -326,6 +326,27 @@ class ComponentExtensionTest extends TestCase
     }
 
     /**
+     * @covers ::handleOutputEvent
+     */
+    public function testFirstMixin()
+    {
+        $this->assertSame("<p>5</p>\nHello", $this->renderAndFormat(implode("\n", [
+            'mixin foo($num)',
+            '  p=$num',
+            '  block',
+            '+#{$firstMixin("biz", "foo", "bar")}(5)',
+            '  | Hello',
+        ])));
+        $this->assertSame("<p>5</p>\nHello", $this->renderAndFormat(implode("\n", [
+            'component foo($num)',
+            '  p=$num',
+            '  block',
+            '+#{$firstComponent("biz", "foo", "bar")}(5)',
+            '  | Hello',
+        ])));
+    }
+
+    /**
      * @covers ::__construct
      * @covers ::getOptions
      * @covers ::enable
