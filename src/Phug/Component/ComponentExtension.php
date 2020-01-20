@@ -91,7 +91,7 @@ class ComponentExtension extends AbstractPlugin
             $code->setValue($value);
         }
 
-        $code->noTransform = true;
+        $code->preventFromTransformation();
 
         return $code;
     }
@@ -128,13 +128,6 @@ class ComponentExtension extends AbstractPlugin
         $compiler = $this->getCompiler();
         $compiler->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
         $compiler->attach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
-        $compiler->attach(CompilerEvent::ELEMENT, function (ElementEvent $event) {
-            $code = $event->getElement();
-
-            if ($code instanceof CodeElement && ($node = $code->getOriginNode()) && ($node->noTransform ?? false)) {
-                $code->preventFromTransformation();
-            }
-        });
     }
 
     public function detachEvents(): void
