@@ -5,9 +5,11 @@ namespace Phug\Component;
 use Closure;
 use Phug\AbstractPlugin;
 use Phug\Ast\NodeInterface;
+use Phug\Compiler\Event\ElementEvent;
 use Phug\Compiler\Event\NodeEvent;
 use Phug\Compiler\Event\OutputEvent;
 use Phug\CompilerEvent;
+use Phug\Formatter\Element\CodeElement;
 use Phug\Parser\NodeInterface as ParserNodeInterface;
 use Phug\Parser\Node\CodeNode;
 use Phug\Parser\Node\KeywordNode;
@@ -89,6 +91,8 @@ class ComponentExtension extends AbstractPlugin
             $code->setValue($value);
         }
 
+        $code->noTransform = true;
+
         return $code;
     }
 
@@ -116,22 +120,7 @@ class ComponentExtension extends AbstractPlugin
 
     public function handleOutputEvent(OutputEvent $event): void
     {
-        $event->setOutput(
-            implode("\n", [
-                '<?php',
-                '$firstMixin = function (string ...$names) use (&$__pug_mixins) {',
-                '  foreach ($names as $name) {',
-                '    if (isset($__pug_mixins[$name])) {',
-                '      return $name;',
-                '    }',
-                '  }',
-                '  throw new \\InvalidArgumentException("No defined mixin/component in [".implode(", ", $names)."]");',
-                '};',
-                '$firstComponent = $firstMixin;',
-                '?>',
-            ]).
-            $event->getOutput()
-        );
+        $event->setOutput($this->parseOutput($event->getOutput()));
     }
 
     public function attachEvents(): void
@@ -139,6 +128,13 @@ class ComponentExtension extends AbstractPlugin
         $compiler = $this->getCompiler();
         $compiler->attach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
         $compiler->attach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
+        $compiler->attach(CompilerEvent::ELEMENT, function (ElementEvent $event) {
+            $code = $event->getElement();
+
+            if ($code instanceof CodeElement && ($node = $code->getOriginNode()) && ($node->noTransform ?? false)) {
+                $code->preventFromTransformation();
+            }
+        });
     }
 
     public function detachEvents(): void
@@ -146,5 +142,28 @@ class ComponentExtension extends AbstractPlugin
         $compiler = $this->getCompiler();
         $compiler->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
         $compiler->detach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
+    }
+
+    private function parseOutput(string $output): string
+    {
+        $mixinFunctionsCode = implode("\n", [
+            '',
+            '$firstMixin = function (string ...$names) use (&$__pug_mixins) {',
+            '  foreach ($names as $name) {',
+            '    if (isset($__pug_mixins[$name])) {',
+            '      return $name;',
+            '    }',
+            '  }',
+            '  throw new \\InvalidArgumentException("No defined mixin/component in [".implode(", ", $names)."]");',
+            '};',
+            '$firstComponent = $firstMixin;',
+            '',
+        ]);
+
+        if (preg_match('/^(<\?(?:php)?\s+namespace\s\S.*)((\n[\s\S]*)?)$/U', $output, $matches)) {
+            return $matches[1].$mixinFunctionsCode.$matches[2];
+        }
+
+        return "<?php$mixinFunctionsCode?>$output";
     }
 }

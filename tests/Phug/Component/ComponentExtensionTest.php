@@ -32,16 +32,8 @@ class ComponentExtensionTest extends TestCase
      */
     protected $readme = null;
 
-    /**
-     * @var Formatter
-     */
-    protected $htmlFormatter;
-
     protected function setUp(): void
     {
-        $this->htmlFormatter = new Formatter;
-        $this->htmlFormatter->setSpacesIndentationMethod(2);
-
         preg_match(
             '/```php\n(?<php>[\s\S]+)\n```/U',
             $this->getReadmeContents(),
@@ -58,7 +50,9 @@ class ComponentExtensionTest extends TestCase
 
     protected function format(string $html): string
     {
-        $html = trim($this->htmlFormatter->format($html));
+        $htmlFormatter = new Formatter;
+        $htmlFormatter->setSpacesIndentationMethod(2);
+        $html = trim($htmlFormatter->format($html));
         $html = preg_replace('/\s+<em>\s*(.*\S)\s*<\/em>\s+/', ' <em>$1</em>', $html);
         $html = preg_replace('/<p>\s*(.*\S)\s*<\/p>/', '<p>$1</p>', $html);
 
@@ -374,5 +368,58 @@ class ComponentExtensionTest extends TestCase
             '  slot __main__',
             '    | Content',
         ]))));
+    }
+
+    public function getPugPhpTestsTemplates(): array
+    {
+        return array_map(function ($file) {
+            return [$file, substr($file, 0, -5).'.pug'];
+        }, glob(__DIR__.'/../../templates/*.html'));
+    }
+
+    /**
+     * @dataProvider getPugPhpTestsTemplates
+     *
+     * @covers ::attachEvents
+     * @covers ::parseOutput
+     *
+     * @param string $htmlFile Expected output template file
+     * @param string $pugFile  Input template file
+     *
+     * @throws Exception
+     */
+    public function testPugPhpTestsTemplates(string $htmlFile, string $pugFile)
+    {
+        $pug = new Pug([
+            'debug' => false,
+            'pretty' => true,
+        ]);
+        ComponentExtension::enable($pug);
+
+        $this->assertSame(
+            $this->rawHtml(file_get_contents($htmlFile)),
+            $this->rawHtml($pug->renderFile($pugFile, [])),
+            basename($pugFile)
+        );
+    }
+
+    private function rawHtml($html)
+    {
+        $html = strtr($html, [
+            "'" => '"',
+            "\r" => '',
+        ]);
+        $html = preg_replace('`\n{2,}`', "\n", $html);
+        $html = preg_replace('`(?<!\n) {2,}`', ' ', $html);
+        $html = preg_replace('` *$`m', '', $html);
+        $html = $this->format($html);
+        $html = preg_replace_callback('`(<(?:style|script)(?:[^>]*)>)([\s\S]+)(</(?:style|script)>)`', function ($matches) {
+            [, $start, $content, $end] = $matches;
+            $content = trim(preg_replace('`^ *`m', '', $content));
+
+            return "$start\n$content\n$end";
+        }, $html);
+
+        return $html;
     }
 }
