@@ -5,6 +5,7 @@ namespace Phug\Test\Component;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use Phug\Compiler\Event\NodeEvent;
+use Phug\Compiler\Event\OutputEvent;
 use Phug\CompilerEvent;
 use Phug\Component\ComponentExtension;
 use Phug\Formatter\Element\KeywordElement;
@@ -261,7 +262,7 @@ class ComponentExtensionTest extends TestCase
         $keyword = new KeywordElement('slot', '', null, null, [(new TextElement)->setValue('Hello')]);
 
         $this->assertSame([
-            'begin' => '<?php if (Phug\Component\ComponentExtension::slot(\'foobar\', get_defined_vars())) { ?>',
+            'begin' => '<?php if (\Phug\Component\ComponentExtension::slot(\'foobar\', get_defined_vars())) { ?>',
             'end' => '<?php } ?>',
         ], $slot('foobar', $keyword));
     }
@@ -351,6 +352,35 @@ class ComponentExtensionTest extends TestCase
     public function testWithPug()
     {
         $pug = new Pug();
+        ComponentExtension::enable($pug);
+
+        $this->assertSame(implode("\n", [
+            'Title',
+            '<article data-attr="5">',
+            '  Content',
+            '</article>',
+        ]), $this->format($pug->render(implode("\n", [
+            'mixin foobar(obj)',
+            '  slot title',
+            '  article(data-attr=obj.a): slot',
+            '+foobar({a: 5})',
+            '  slot title',
+            '    | Title',
+            '  slot __main__',
+            '    | Content',
+        ]))));
+    }
+
+    /**
+     * @throws PhugException
+     */
+    public function testNamespace()
+    {
+        $pug = new Pug([
+            'on_output' => function (OutputEvent $event) {
+                $event->prependCode('namespace pug;');
+            },
+        ]);
         ComponentExtension::enable($pug);
 
         $this->assertSame(implode("\n", [

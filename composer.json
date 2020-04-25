@@ -22,7 +22,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=7.2",
-        "phug/phug": "^1.6"
+        "phug/phug": "^1.7.2"
     },
     "require-dev": {
         "phpunit/phpunit": "^8.5",
