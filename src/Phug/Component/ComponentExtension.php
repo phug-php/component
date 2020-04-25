@@ -76,7 +76,7 @@ class ComponentExtension extends AbstractPlugin
         return [
             'slot' => static function (string $name): array {
                 return [
-                    'begin' => '<?php if ('.static::class.'::slot('.var_export($name, true).', get_defined_vars())) { ?>',
+                    'begin' => '<?php if (\\'.static::class.'::slot('.var_export($name, true).', get_defined_vars())) { ?>',
                     'end' => '<?php } ?>',
                 ];
             },
@@ -120,7 +120,17 @@ class ComponentExtension extends AbstractPlugin
 
     public function handleOutputEvent(OutputEvent $event): void
     {
-        $event->setOutput($this->parseOutput($event->getOutput()));
+        $event->prependCode(implode("\n", [
+            '$firstMixin = function (string ...$names) use (&$__pug_mixins) {',
+            '  foreach ($names as $name) {',
+            '    if (isset($__pug_mixins[$name])) {',
+            '      return $name;',
+            '    }',
+            '  }',
+            '  throw new \\InvalidArgumentException("No defined mixin/component in [".implode(", ", $names)."]");',
+            '};',
+            '$firstComponent = $firstMixin;',
+        ]));
     }
 
     public function attachEvents(): void
@@ -135,28 +145,5 @@ class ComponentExtension extends AbstractPlugin
         $compiler = $this->getCompiler();
         $compiler->detach(CompilerEvent::NODE, [$this, 'handleNodeEvent']);
         $compiler->detach(CompilerEvent::OUTPUT, [$this, 'handleOutputEvent']);
-    }
-
-    private function parseOutput(string $output): string
-    {
-        $mixinFunctionsCode = implode("\n", [
-            '',
-            '$firstMixin = function (string ...$names) use (&$__pug_mixins) {',
-            '  foreach ($names as $name) {',
-            '    if (isset($__pug_mixins[$name])) {',
-            '      return $name;',
-            '    }',
-            '  }',
-            '  throw new \\InvalidArgumentException("No defined mixin/component in [".implode(", ", $names)."]");',
-            '};',
-            '$firstComponent = $firstMixin;',
-            '',
-        ]);
-
-        if (preg_match('/^(<\?(?:php)?\s+namespace\s\S.*)((\n[\s\S]*)?)$/U', $output, $matches)) {
-            return $matches[1].$mixinFunctionsCode.$matches[2];
-        }
-
-        return "<?php$mixinFunctionsCode?>$output";
     }
 }
