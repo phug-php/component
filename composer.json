@@ -38,5 +38,10 @@
         "psr-4": {
             "Phug\\Test\\Component\\": "./tests/Phug/Component/"
         }
+    },
+    "config": {
+        "allow-plugins": {
+            "nodejs-php-fallback/nodejs-php-fallback": true
+        }
     }
 }
