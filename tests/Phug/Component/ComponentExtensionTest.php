@@ -376,12 +376,6 @@ class ComponentExtensionTest extends TestCase
      */
     public function testNamespace()
     {
-        $phugVersion = $this->getPhugInstalledVersion();
-
-        if ($phugVersion !== null && version_compare($phugVersion, '2.0.0', '<')) {
-            self::markTestSkipped('Namespace support is only available since Phug 2.0.0');
-        }
-
         $pug = new Pug([
             'on_output' => function (OutputEvent $event) {
                 $event->prependCode('namespace pug;');
@@ -457,21 +451,5 @@ class ComponentExtensionTest extends TestCase
         }, $html);
 
         return $html;
-    }
-
-    private function getPhugInstalledVersion(): ?string
-    {
-        $composerLockFile = __DIR__ . '/../../../composer.lock';
-        $packages = file_exists($composerLockFile)
-            ? (json_decode(file_get_contents($composerLockFile), true)['packages'] ?? [])
-            : [];
-
-        foreach ($packages as $package) {
-            if (($package['name'] ?? null) === 'phug/phug') {
-                return $package['version'] ?? null;
-            }
-        }
-
-        return null;
     }
 }
