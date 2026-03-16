@@ -63,7 +63,7 @@ class ComponentExtensionTest extends TestCase
     protected function getReadmeContents(): string
     {
         if ($this->readme === null) {
-            $this->readme = file_get_contents(__DIR__ . '/../../../README.md');
+            $this->readme = str_replace("\r",'', file_get_contents(__DIR__ . '/../../../README.md'));
         }
 
         return $this->readme;
