@@ -2,6 +2,8 @@
 
 namespace Phug\Test\Component;
 
+use DOMAttr;
+use DOMDocument;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use Phug\Compiler\Event\NodeEvent;
@@ -21,6 +23,7 @@ use Phug\RendererException;
 use Phug\Util\Partial\ValueTrait;
 use Pug\Pug;
 use ReflectionException;
+use SimpleXMLElement;
 use XhtmlFormatter\Formatter;
 
 /**
@@ -403,6 +406,8 @@ class ComponentExtensionTest extends TestCase
     public function getPugPhpTestsTemplates(): array
     {
         return array_map(function ($file) {
+            $file = basename($file);
+
             return [$file, substr($file, 0, -5).'.pug'];
         }, glob(__DIR__.'/../../templates/*.html'));
     }
@@ -411,7 +416,6 @@ class ComponentExtensionTest extends TestCase
      * @dataProvider getPugPhpTestsTemplates
      *
      * @covers ::attachEvents
-     * @covers ::parseOutput
      *
      * @param string $htmlFile Expected output template file
      * @param string $pugFile  Input template file
@@ -420,6 +424,7 @@ class ComponentExtensionTest extends TestCase
      */
     public function testPugPhpTestsTemplates(string $htmlFile, string $pugFile)
     {
+        $templateFolder = __DIR__.'/../../templates/';
         $pug = new Pug([
             'debug' => false,
             'pretty' => true,
@@ -427,8 +432,8 @@ class ComponentExtensionTest extends TestCase
         ComponentExtension::enable($pug);
 
         $this->assertSame(
-            $this->rawHtml(file_get_contents($htmlFile)),
-            $this->rawHtml($pug->renderFile($pugFile, [])),
+            $this->rawHtml(file_get_contents($templateFolder . $htmlFile)),
+            $this->rawHtml($pug->renderFile($templateFolder . $pugFile, [])),
             basename($pugFile)
         );
     }
@@ -436,19 +441,64 @@ class ComponentExtensionTest extends TestCase
     private function rawHtml($html)
     {
         $html = strtr($html, [
-            "'" => '"',
             "\r" => '',
         ]);
         $html = preg_replace('`\n{2,}`', "\n", $html);
         $html = preg_replace('`(?<!\n) {2,}`', ' ', $html);
         $html = preg_replace('` *$`m', '', $html);
         $html = $this->format($html);
-        $html = preg_replace_callback('`(<(?:style|script)(?:[^>]*)>)([\s\S]+)(</(?:style|script)>)`', function ($matches) {
-            [, $start, $content, $end] = $matches;
-            $content = trim(preg_replace('`^ *`m', '', $content));
+        $html = preg_replace_callback(
+            '`(<(?:style|script)[^>]*>)([\s\S]+)(</(?:style|script)>)`',
+            function ($matches) {
+                [, $start, $content, $end] = $matches;
+                $content = trim(preg_replace('`^ *`m', '', $content));
 
-            return "$start\n$content\n$end";
-        }, $html);
+                return "$start\n$content\n$end";
+            },
+            $html
+        );
+        $html = preg_replace_callback(
+            '`class="([^"]+)"`',
+            function ($matches) {
+                $classes = preg_split('/\s+/', $matches[1]);
+                sort($classes);
+
+                return 'class="' . implode(' ', $classes) . '"';
+            },
+            $html
+        );
+        $document = new DOMDocument();
+        $html = preg_replace_callback(
+            '/(?<start><(?<tag>\w+)\s(?<parameters>[^>]+))>/',
+            function ($matches) use ($document) {
+                try {
+                    $tag = rtrim($matches['start'], '/') . '/>';
+                    $document->loadHTML("<html><body>$tag</body></html>");
+                    $node = $document->getElementsByTagName('body')[0]->firstChild;
+                } catch (Exception $error) {
+                    return $matches[0];
+                }
+
+                $attributes = iterator_to_array($node->attributes);
+                ksort($attributes);
+
+                return '<' . $matches['tag'] .
+                    implode('', array_map(
+                        static function (DOMAttr $value): string {
+                            $name = $value->name;
+
+                            if ($value->textContent === '') {
+                                return " $name";
+                            }
+
+                            return " $name=\"" . htmlentities($value->textContent) . '"';
+                        },
+                        $attributes
+                    )) .
+                    '>';
+            },
+            $html
+        );
 
         return $html;
     }
