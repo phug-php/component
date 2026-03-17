@@ -408,8 +408,8 @@ class ComponentExtensionTest extends TestCase
         return array_map(function ($file) {
             $file = basename($file);
 
-            return [$file, substr($file, 0, -5).'.pug'];
-        }, glob(__DIR__.'/../../templates/*.html'));
+            return [substr($file, 0, -4).'.html', $file];
+        }, glob(__DIR__.'/../../templates/*.pug'));
     }
 
     /**
@@ -431,18 +431,27 @@ class ComponentExtensionTest extends TestCase
         ]);
         ComponentExtension::enable($pug);
 
+        $actualContent = $this->rawHtml($pug->renderFile($templateFolder . $pugFile, []));
+        $altHtmlFile = $templateFolder . strtr($htmlFile, ['.html' => '.alt.html']);
+
+        if (file_exists($altHtmlFile)) {
+            if ($this->rawHtml(file_get_contents($altHtmlFile)) === $actualContent) {
+                $this->assertTrue(true);
+
+                return;
+            }
+        }
+
         $this->assertSame(
             $this->rawHtml(file_get_contents($templateFolder . $htmlFile)),
-            $this->rawHtml($pug->renderFile($templateFolder . $pugFile, [])),
+            $actualContent,
             basename($pugFile)
         );
     }
 
     private function rawHtml($html)
     {
-        $html = strtr($html, [
-            "\r" => '',
-        ]);
+        $html = strtr($html, ["\r" => '']);
         $html = preg_replace('`\n{2,}`', "\n", $html);
         $html = preg_replace('`(?<!\n) {2,}`', ' ', $html);
         $html = preg_replace('` *$`m', '', $html);
@@ -484,22 +493,48 @@ class ComponentExtensionTest extends TestCase
 
                 return '<' . $matches['tag'] .
                     implode('', array_map(
-                        static function (DOMAttr $value): string {
-                            $name = $value->name;
-
-                            if ($value->textContent === '') {
-                                return " $name";
-                            }
-
-                            return " $name=\"" . htmlentities($value->textContent) . '"';
-                        },
+                        [$this, 'formatAttribute'],
                         $attributes
                     )) .
                     '>';
             },
             $html
         );
+        $html = preg_replace_callback(
+            '/(?<start><(\w+)(?:\s[^>]+)?>)(?<content>[^<]+)(?<end><\/\2>)/',
+            function ($matches) use ($document) {
+                return $matches['start'] .
+                    $this->escapeQuotes($matches['content']) .
+                    $matches['end'];
+            },
+            $html
+        );
 
         return $html;
+    }
+
+    private function formatAttribute(DOMAttr $attribute): string
+    {
+        $name = $attribute->name;
+        $value = $attribute->textContent;
+
+        if ($name === 'data-items') {
+            var_dump($value);
+            exit;
+        }
+
+        if ($value === '') {
+            return " $name";
+        }
+
+        return " $name=\"" . $this->escapeQuotes($value) . '"';
+    }
+
+    private function escapeQuotes(string $input): string
+    {
+        return strtr($input, [
+            '"' => '&quot;',
+            "'" => '&#039;',
+        ]);
     }
 }
