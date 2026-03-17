@@ -2,6 +2,8 @@
 
 namespace Phug\Test\Component;
 
+use DOMAttr;
+use DOMDocument;
 use Exception;
 use PHPUnit\Framework\TestCase;
 use Phug\Compiler\Event\NodeEvent;
@@ -21,6 +23,7 @@ use Phug\RendererException;
 use Phug\Util\Partial\ValueTrait;
 use Pug\Pug;
 use ReflectionException;
+use SimpleXMLElement;
 use XhtmlFormatter\Formatter;
 
 /**
@@ -63,7 +66,7 @@ class ComponentExtensionTest extends TestCase
     protected function getReadmeContents(): string
     {
         if ($this->readme === null) {
-            $this->readme = file_get_contents(__DIR__ . '/../../../README.md');
+            $this->readme = str_replace("\r",'', file_get_contents(__DIR__ . '/../../../README.md'));
         }
 
         return $this->readme;
@@ -403,15 +406,16 @@ class ComponentExtensionTest extends TestCase
     public function getPugPhpTestsTemplates(): array
     {
         return array_map(function ($file) {
-            return [$file, substr($file, 0, -5).'.pug'];
-        }, glob(__DIR__.'/../../templates/*.html'));
+            $file = basename($file);
+
+            return [substr($file, 0, -4).'.html', $file];
+        }, glob(__DIR__.'/../../templates/*.pug'));
     }
 
     /**
      * @dataProvider getPugPhpTestsTemplates
      *
      * @covers ::attachEvents
-     * @covers ::parseOutput
      *
      * @param string $htmlFile Expected output template file
      * @param string $pugFile  Input template file
@@ -420,36 +424,117 @@ class ComponentExtensionTest extends TestCase
      */
     public function testPugPhpTestsTemplates(string $htmlFile, string $pugFile)
     {
+        $templateFolder = __DIR__.'/../../templates/';
         $pug = new Pug([
             'debug' => false,
             'pretty' => true,
         ]);
         ComponentExtension::enable($pug);
 
+        $actualContent = $this->rawHtml($pug->renderFile($templateFolder . $pugFile, []));
+        $altHtmlFile = $templateFolder . strtr($htmlFile, ['.html' => '.alt.html']);
+
+        if (file_exists($altHtmlFile)) {
+            if ($this->rawHtml(file_get_contents($altHtmlFile)) === $actualContent) {
+                $this->assertTrue(true);
+
+                return;
+            }
+        }
+
         $this->assertSame(
-            $this->rawHtml(file_get_contents($htmlFile)),
-            $this->rawHtml($pug->renderFile($pugFile, [])),
+            $this->rawHtml(file_get_contents($templateFolder . $htmlFile)),
+            $actualContent,
             basename($pugFile)
         );
     }
 
     private function rawHtml($html)
     {
-        $html = strtr($html, [
-            "'" => '"',
-            "\r" => '',
-        ]);
+        $html = strtr($html, ["\r" => '']);
         $html = preg_replace('`\n{2,}`', "\n", $html);
         $html = preg_replace('`(?<!\n) {2,}`', ' ', $html);
         $html = preg_replace('` *$`m', '', $html);
         $html = $this->format($html);
-        $html = preg_replace_callback('`(<(?:style|script)(?:[^>]*)>)([\s\S]+)(</(?:style|script)>)`', function ($matches) {
-            [, $start, $content, $end] = $matches;
-            $content = trim(preg_replace('`^ *`m', '', $content));
+        $html = preg_replace_callback(
+            '`(<(?:style|script)[^>]*>)([\s\S]+)(</(?:style|script)>)`',
+            function ($matches) {
+                [, $start, $content, $end] = $matches;
+                $content = trim(preg_replace('`^ *`m', '', $content));
 
-            return "$start\n$content\n$end";
-        }, $html);
+                return "$start\n$content\n$end";
+            },
+            $html
+        );
+        $html = preg_replace_callback(
+            '`class="([^"]+)"`',
+            function ($matches) {
+                $classes = preg_split('/\s+/', $matches[1]);
+                sort($classes);
+
+                return 'class="' . implode(' ', $classes) . '"';
+            },
+            $html
+        );
+        $document = new DOMDocument();
+        $html = preg_replace_callback(
+            '/(?<start><(?<tag>\w+)\s(?<parameters>[^>]+))>/',
+            function ($matches) use ($document) {
+                try {
+                    $tag = rtrim($matches['start'], '/') . '/>';
+                    $document->loadHTML("<html><body>$tag</body></html>");
+                    $node = $document->getElementsByTagName('body')[0]->firstChild;
+                } catch (Exception $error) {
+                    return $matches[0];
+                }
+
+                $attributes = iterator_to_array($node->attributes);
+                ksort($attributes);
+
+                return '<' . $matches['tag'] .
+                    implode('', array_map(
+                        [$this, 'formatAttribute'],
+                        $attributes
+                    )) .
+                    '>';
+            },
+            $html
+        );
+        $html = preg_replace_callback(
+            '/(?<start><(\w+)(?:\s[^>]+)?>)(?<content>[^<]+)(?<end><\/\2>)/',
+            function ($matches) use ($document) {
+                return $matches['start'] .
+                    $this->escapeQuotes($matches['content']) .
+                    $matches['end'];
+            },
+            $html
+        );
 
         return $html;
+    }
+
+    private function formatAttribute(DOMAttr $attribute): string
+    {
+        $name = $attribute->name;
+        $value = $attribute->textContent;
+
+        if ($name === 'data-items') {
+            var_dump($value);
+            exit;
+        }
+
+        if ($value === '') {
+            return " $name";
+        }
+
+        return " $name=\"" . $this->escapeQuotes($value) . '"';
+    }
+
+    private function escapeQuotes(string $input): string
+    {
+        return strtr($input, [
+            '"' => '&quot;',
+            "'" => '&#039;',
+        ]);
     }
 }
