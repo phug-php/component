@@ -83,7 +83,7 @@ class ComponentExtension extends AbstractPlugin
         ];
     }
 
-    protected function getCodeNode(NodeInterface $linkedNode, ParserNodeInterface $parentNode = null, $value = null, array $children = null)
+    protected function getCodeNode(NodeInterface $linkedNode, ?ParserNodeInterface $parentNode = null, $value = null, ?array $children = null)
     {
         $code = new CodeNode($linkedNode->getToken(), null, $linkedNode->getLevel(), $parentNode, $children);
 
